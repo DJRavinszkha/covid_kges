@@ -1,0 +1,314 @@
+---
+title: "CROssBAR-CoV_KGE ID Mapping with Bridge DB"
+output: html_notebook
+---
+
+
+```{r}
+DBGN <- read.table(file = "/Users/ravinschmidl/Desktop/CoV-KGE-master/dbgn/edited_by_me/DBGN_ID_Map.tsv", 
+                  sep = '\t', 
+                  header = TRUE)
+
+
+CB <- read.table(file = "/Users/ravinschmidl/Desktop/CoV-KGE-master/crossbar/edited_by_me/CB_ID_Map.tsv", 
+                  sep = '\t', 
+                  header = TRUE)
+```
+
+```{r}
+#For each DBGN and CB we need to separate each into tables with their unique id's. For ease, we will simply create a list of entities for each graph first. 
+
+#List of unique entities
+DBGN <- DBGN[,-c(1,3,4,6,7,8,10,11)]
+CB <- CB[,-c(1,2,3,5,6,8,9,10,11,12,14,15)]
+```
+```{r}
+
+DBGN_ent <- data.frame(unlist(DBGN[,c(1,3)]))
+DBGN_ds <- data.frame(unlist(DBGN[,c(2,4)]))
+
+dbgn <- cbind(DBGN_ent, DBGN_ds)
+colnames(dbgn) <- c('identifier', 'source')
+
+CB_ent <- data.frame(unlist(CB[,c(1,3)]))
+CB_ds <- data.frame(unlist(CB[,c(2,4)]))
+
+cb <- cbind(CB_ent, CB_ds)
+colnames(cb) <- c('identifier', 'source')
+
+dbgn2 <- dbgn[!duplicated(dbgn$identifier), ]
+cb2 <- cb[!duplicated(cb$identifier), ]
+
+dbgn2 <- dbgn2[order(dbgn2$source),]
+cb2 <- cb2[order(cb2$source),]
+
+dbgn2$identifier <- gsub('chebi_', 'CHEBI:', dbgn2$identifier)
+dbgn2$identifier <- gsub(".*_","",dbgn2$identifier)
+```
+
+```{r}
+unique(dbgn2$source)
+unique(cb2$source)
+
+#We are only looking to find matches between ChEBI, Entrez, MeSH, ChEMBL, Uniprot and DrugBank. 
+# We match the ID (column X) to the datasource. 
+Identifiers <- read.csv("https://raw.githubusercontent.com/bridgedb/BridgeDb/master/org.bridgedb.bio/resources/org/bridgedb/bio/datasources.tsv", sep = '\t')
+
+#map to Inchi?
+```
+
+```{r}
+dbgn_split <- split(dbgn2, f = dbgn2$source)
+cb_split <- split(cb2, f = cb2$source)
+```
+```{r}
+dbgn_chebi <- dbgn_split$ChEBI
+dbgn_mesh <- dbgn_split$MeSH
+dbgn_entrez <- dbgn_split$Entrez
+
+dbgn_chebi$source <- 'Ce'
+dbgn_mesh$source <- 'Me'
+dbgn_entrez$source <- 'L'
+```
+```{r}
+cb_chembl <- cb_split$ChEMBL
+cb_drugbank <- cb_split$DrugBank
+cb_uniprot <- cb_split$UniProt
+
+cb_chembl$source <- 'Cl'
+cb_drugbank$source <- 'Dr'
+cb_uniprot$source <- 'S'
+```
+
+```{r}
+cb_uniprot2 <- cb_uniprot$identifier
+write.table(cb_uniprot2, file='/Users/ravinschmidl/Desktop/cb_uniprot.tsv', quote=FALSE, sep='\t', col.names = NA)
+
+#cb_drugbank2 <- cb_drugbank$identifier
+#write.table(cb_drugbank2, file='/Users/ravinschmidl/Desktop/cb_drugbank.tsv', quote=FALSE, sep='\t', col.names = NA)
+
+#cb_chembl2 <- cb_chembl$identifier
+#write.table(cb_chembl2, file='/Users/ravinschmidl/Desktop/cb_chembl.tsv', quote=FALSE, sep='\t', col.names = NA)
+
+#dbgn_chebi2 <- dbgn_chebi$identifier
+#write.table(dbgn_chebi2, file='/Users/ravinschmidl/Desktop/dbgn_chebi.tsv', quote=FALSE, sep='\t', col.names = NA)
+
+#dbgn_mesh <- dbgn_mesh$identifier
+#write.table(dbgn_mesh, file='/Users/ravinschmidl/Desktop/dbgn_mesh.tsv', quote=FALSE, sep='\t', col.names = NA)
+
+#dbgn_entrez2 <- dbgn_entrez$identifier
+#write.table(dbgn_entrez2, file='/Users/ravinschmidl/Desktop/dbgn_entrez.tsv', quote=FALSE, sep='\t', col.names = NA)
+```
+
+
+
+
+```{r}
+library("BridgeDbR")
+library("tidyverse")
+
+get_mappings <- function(filepath, source, target='') {
+  # filepath indicates the path to the file containing the identifiers to be mapped
+  # organism is the organism these identifiers are describing
+  # source is the system code for the data source of the identifiers
+  # target is an optional parameter indicating the data source to which we are mapping
+
+  data_df <- read_tsv(filepath, col_names=FALSE)
+  if (dim(data_df)[2] == 1){
+    colnames(data_df) <- c('identifier')
+  } else {
+    colnames(data_df) <- c('local', 'identifier')
+  }
+    
+  
+  data_df$source = source
+  
+  location <- getDatabase('Homo sapiens')
+  mapper <- loadDatabase(location)
+  
+  if (nchar(target) == 0) {
+    mapping <- maps(mapper, data_df)
+  }
+
+  else{
+    mapping <- maps(mapper, data_df, target=target)
+  }
+  return(right_join(data_df, mapping))
+}
+```
+
+```{r}
+
+cb_up_mapping <- get_mappings('/Users/ravinschmidl/Desktop/cb_uniprot.tsv', 'S', 'L')
+#dbgn_entrez_mapping <- get_mappings('/Users/ravinschmidl/Desktop/dbgn_entrez.tsv', 'L')
+
+
+cb_up_mapping
+
+write.csv(cb_up_mapping,"/Users/ravinschmidl/Desktop/cb_uniprot.csv", row.names = FALSE)
+
+```
+```{r}
+
+get_mappings <- function(filepath, source, target='') {
+  # filepath indicates the path to the file containing the identifiers to be mapped
+  # organism is the organism these identifiers are describing
+  # source is the system code for the data source of the identifiers
+  # target is an optional parameter indicating the data source to which we are mapping
+
+  data_df <- read_tsv(filepath, col_names=FALSE)
+  if (dim(data_df)[2] == 1){
+    colnames(data_df) <- c('identifier')
+  } else {
+    colnames(data_df) <- c('local', 'identifier')
+  }
+    
+  
+  data_df$source = source
+  
+  #location <- getDatabase('Homo sapiens')
+  mapper <- loadDatabase('/Users/ravinschmidl/Downloads/metabolites_20201104.bridge')
+  
+  if (nchar(target) == 0) {
+    mapping <- maps(mapper, data_df)
+  }
+
+  else{
+    mapping <- maps(mapper, data_df, target=target)
+  }
+  return(right_join(data_df, mapping))
+}
+```
+```{r}
+cb_chembl_mapping2 <- get_mappings('/Users/ravinschmidl/Desktop/cb_chembl.tsv', 'Cl', 'Ik')
+cb_db_mapping2 <- get_mappings('/Users/ravinschmidl/Desktop/cb_drugbank.tsv', 'Dr', 'Ik')
+
+
+dbgn_mesh_mapping2 <- get_mappings('/Users/ravinschmidl/Desktop/dbgn_mesh.tsv', 'Me')
+dbgn_chebi_mapping2 <- get_mappings('/Users/ravinschmidl/Desktop/dbgn_chebi.tsv', 'Ce', 'Ik')
+
+```
+
+```{r}
+CB_db <- read.table(file = "/Users/ravinschmidl/Desktop/cb_drugbank.tsv", 
+                  sep = '\t', 
+                  header = TRUE)
+
+CB_chembl <- read.table(file = "/Users/ravinschmidl/Desktop/cb_chembl.tsv", 
+                  sep = '\t', 
+                  header = TRUE)
+
+DBGN_chebi <- read.table(file = "/Users/ravinschmidl/Desktop/dbgn_chebi.tsv", 
+                  sep = '\t', 
+                  header = TRUE)
+
+DBGN_mesh <- read.table(file = "/Users/ravinschmidl/Desktop/dbgn_mesh.tsv", 
+                  sep = '\t', 
+                  header = TRUE)
+```
+
+```{r}
+CB_up <- read.table(file = "/Users/ravinschmidl/Desktop/cb_uniprot.tsv", 
+                  sep = '\t', 
+                  header = TRUE)
+
+DBGN_entrez <- read.table(file = "/Users/ravinschmidl/Desktop/dbgn_entrez.tsv", 
+                  sep = '\t', 
+                  header = TRUE)
+```
+
+
+
+
+```{r}
+#up may ,qp to multiple targets
+dbgn2[dbgn2$identifier %in%  cb_up_entrez_mapping$mapping,]
+```
+
+```{r}
+dbgn2[dbgn2$identifier %in%  cb_db_mapping$mapping,]
+```
+
+```{r}
+file <- "metabolites_20210109.bridge"
+options(timeout=1000)
+
+download.file(
+  '/Users/ravinschmidl/Downloads/metabolites_20210109.bridge',
+  location
+)
+location <- normalizePath(file)
+mapper <- 
+```
+
+
+
+```{r}
+library('BridgeDbR')
+mapper2 <- loadDatabase('/Users/ravinschmidl/Downloads/metabolites_20210109.bridge')
+
+colnames(Cb) <- 'identifier'
+write.table(Cb, file='/Users/ravinschmidl/Desktop/ugh.tsv', quote=FALSE, sep='\t', col.names = NA)
+
+maps(mapper2, Cb)
+
+```
+```{r}
+#Check MeSH <-> EFO Mapping
+
+#Chebi/Mesh <-> Chembl/DB Mapping
+
+#Mondo(mono?) mapping Nuria
+
+
+```
+
+
+
+```{r}
+library('dplyr')
+#Get ordered frequency of terms in DBGN
+table(unlist(DBGN[, (c(2,5))])) %>% 
+  as.data.frame() %>% 
+  arrange(desc(Freq))
+```
+```{r}
+#Get ordered frequency of terms in CB
+table(unlist(CB[, (c(2,5))])) %>% 
+  as.data.frame() %>% 
+  arrange(desc(Freq))
+```
+```{r}
+getMatchingSources("MESH:C406224")
+
+```
+
+```{r}
+map(mapper, "Ce", "D001943", "Cl")
+```
+
+```{r}
+dbLocation2 <- ("/Users/ravinschmidl/Desktop/CoV-KGE-master/ID Mapping/metabolites_20190207.bridge")
+mapper2 <- loadDatabase(dbLocation2)
+```
+
+
+```{r}
+map(mapper, "DB00091", source="Dr")
+
+```
+
+```{r}
+
+#change options timeout
+loc <- getDatabase('Homo sapiens')
+```
+
+
+
+
+
+
+
+
+
