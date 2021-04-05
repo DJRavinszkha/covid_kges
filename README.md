@@ -4,6 +4,7 @@ All of the files used can be downloaded at:
     https://zenodo.org/record/4662104#.YGp_ZRMzYc8
 
 The TSV format of the KG (not the RDF graph) with scores can be downloaded at:
+    https://zenodo.org/record/4662244#.YGsRDRMzYc8
     
   The scores for non-GNBR triples in CoV-KGE were assigned an arbitrary value of 0.2. 
   The mean of the scores for the GNBR triples in CoV-KGE was approximately 0.004.
