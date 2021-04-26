@@ -52,7 +52,7 @@ unique(cb2$source)
 
 #We are only looking to find matches between ChEBI, Entrez, MeSH, ChEMBL, Uniprot and DrugBank. 
 # We match the ID (column X) to the datasource. 
-Identifiers <- read.csv("https://raw.githubusercontent.com/bridgedb/BridgeDb/master/org.bridgedb.bio/resources/org/bridgedb/bio/datasources.tsv", sep = '\t')
+Identifiers <- read.csv("https://bridgedb.github.io/datasources/datasources.tsv", sep = '\t')
 
 #map to Inchi?
 ```
